@@ -41,8 +41,7 @@ export async function createClient() {
       const { data: { user: adminUser } } = await client.auth.getUser()
       if (adminUser) {
         // 2. Verify that this admin user is actually a staff admin
-        const { data: profile } = await client
-          .from('profiles')
+        const { data: profile } = await (client.from('profiles') as any)
           .select('role')
           .eq('id', adminUser.id)
           .single()
@@ -52,7 +51,7 @@ export async function createClient() {
           const adminClient = await createAdminClient()
           
           // Override getUser on this client to return the impersonated user's data
-          adminClient.auth.getUser = async () => {
+          adminClient.auth.getUser = (async (jwt?: string) => {
             const { data: userData } = await adminClient.auth.admin.getUserById(impersonatedUserId)
             if (userData && userData.user) {
               const impersonatedUser = {
@@ -65,8 +64,16 @@ export async function createClient() {
               }
               return { data: { user: impersonatedUser }, error: null }
             }
-            return { data: { user: null }, error: new Error('Impersonated user not found') }
-          }
+            return {
+              data: { user: null },
+              error: {
+                name: 'AuthError',
+                message: 'Impersonated user not found',
+                status: 404,
+                __isAuthError: true
+              } as any
+            }
+          }) as any
 
           return adminClient as any
         }

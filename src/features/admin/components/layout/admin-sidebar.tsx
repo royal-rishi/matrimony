@@ -74,24 +74,29 @@ export function AdminSidebar({
       )}
     >
       {/* Brand Header */}
-      <div className="h-16 flex items-center justify-between px-4 border-b border-slate-900">
+      <div className="h-16 flex items-center justify-between px-4 border-b border-slate-900 bg-slate-950">
         {!collapsed && (
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-pink-500 to-rose-600 flex items-center justify-center font-black text-white text-base shadow-lg shadow-pink-500/20">
-              RJ
-            </div>
-            <div>
-              <span className="font-extrabold text-sm tracking-tight text-white">RishtaJoro</span>
-              <span className="block text-[9px] font-black uppercase text-pink-500 tracking-widest leading-none mt-0.5">
-                Staff Ops
-              </span>
-            </div>
+            <Link href="/admin" className="flex items-center group shrink-0">
+              <img
+                src="/logo/logo.png"
+                alt="RishtaJodo Matrimony"
+                className="h-10 w-auto object-contain transition-transform group-hover:scale-[1.02]"
+              />
+            </Link>
+            <span className="text-[8px] font-black uppercase text-pink-500 tracking-widest bg-pink-500/10 px-1.5 py-0.5 rounded-md leading-none select-none">
+              OPS
+            </span>
           </div>
         )}
         {collapsed && (
-          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-pink-500 to-rose-600 flex items-center justify-center font-black text-white text-xs mx-auto">
-            RJ
-          </div>
+          <Link href="/admin" className="flex items-center justify-center mx-auto shrink-0">
+            <img
+              src="/logo/logo.png"
+              alt="RishtaJodo"
+              className="h-8 w-8 object-contain"
+            />
+          </Link>
         )}
         <button
           onClick={() => setCollapsed(!collapsed)}

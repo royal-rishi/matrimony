@@ -104,25 +104,31 @@ export function DashboardOverview({ kpis }: { kpis: any }) {
       return `${x},${y}`
     }).join(' ')
 
+    const cleanColor = strokeColor.replace('#', '')
+
     return (
       <svg className="w-full h-full" viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="none">
         <defs>
-          <linearGradient id={`grad-${strokeColor}`} x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor={strokeColor} stopOpacity="0.2" />
+          <linearGradient id={`grad-${cleanColor}`} x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor={strokeColor} stopOpacity="0.15" />
             <stop offset="100%" stopColor={strokeColor} stopOpacity="0.0" />
           </linearGradient>
+          <filter id={`shadow-${cleanColor}`} x="-5%" y="-20%" width="110%" height="140%">
+            <feDropShadow dx="0" dy="6" stdDeviation="4" floodColor={strokeColor} floodOpacity="0.25" />
+          </filter>
         </defs>
         <path
           d={`M ${padding},${height - padding} L ${points} L ${width - padding},${height - padding} Z`}
-          fill={`url(#grad-${strokeColor})`}
+          fill={`url(#grad-${cleanColor})`}
         />
         <polyline
           fill="none"
           stroke={strokeColor}
-          strokeWidth="3.5"
+          strokeWidth="4"
           strokeLinecap="round"
           strokeLinejoin="round"
           points={points}
+          filter={`url(#shadow-${cleanColor})`}
         />
       </svg>
     )
@@ -137,13 +143,13 @@ export function DashboardOverview({ kpis }: { kpis: any }) {
           return (
             <div
               key={idx}
-              className="p-5 border border-gray-200 dark:border-gray-800 rounded-2xl bg-white dark:bg-gray-950 shadow-sm flex flex-col justify-between hover:shadow-md transition duration-200 hover:-translate-y-0.5 group"
+              className="p-5 border border-gray-200 dark:border-gray-800 rounded-2xl bg-white dark:bg-gray-950 shadow-sm flex flex-col justify-between hover:shadow-md hover:shadow-pink-500/5 dark:hover:shadow-pink-900/5 hover:border-pink-500/20 dark:hover:border-pink-500/20 transition-all duration-300 hover:-translate-y-1 group"
             >
               <div className="flex justify-between items-start">
                 <span className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest leading-none">
                   {c.title}
                 </span>
-                <div className={`p-2 rounded-xl shrink-0 leading-none ${c.color}`}>
+                <div className={`p-2.5 rounded-xl shrink-0 leading-none group-hover:scale-110 transition-transform duration-300 ${c.color}`}>
                   <Icon size={16} />
                 </div>
               </div>
@@ -151,7 +157,7 @@ export function DashboardOverview({ kpis }: { kpis: any }) {
                 <span className="text-2xl font-black text-gray-800 dark:text-white leading-none tracking-tight block">
                   {c.value}
                 </span>
-                <span className="text-[10px] text-gray-400 font-bold block mt-1 leading-none">{c.sub}</span>
+                <span className="text-[10px] text-gray-400 dark:text-gray-500 font-semibold block mt-1 leading-none">{c.sub}</span>
               </div>
             </div>
           )

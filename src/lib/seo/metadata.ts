@@ -61,8 +61,8 @@ export function generateMetadata({
       ? { index: false, follow: false }
       : { index: true, follow: true, googleBot: { index: true, follow: true } },
     icons: {
-      icon: '/favicon.ico',
-      apple: '/apple-touch-icon.png',
+      icon: '/logo/logo.png',
+      apple: '/logo/logo.png',
     },
     manifest: '/site.webmanifest',
   }

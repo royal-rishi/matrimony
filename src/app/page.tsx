@@ -1,13 +1,14 @@
 import { generateMetadata } from '@/lib/seo/metadata'
 import type { Metadata } from 'next'
 import { LandingHeader } from '@/features/landing/components/landing-header'
+import { redirect } from 'next/navigation'
+import { createClient } from '@/lib/supabase/server'
 import {
   HeroSection,
   WhySection,
   FeaturedBrides,
   FeaturedGrooms,
   SuccessStories,
-  MembershipPlans,
   HowItWorks,
   AssociateMatchmaker,
   Testimonials,
@@ -29,7 +30,14 @@ export const dynamic = 'force-dynamic'
  * Public redesigned premium home page.
  * Imports and composes feature-level sections in chronological order.
  */
-export default function HomePage() {
+export default async function HomePage() {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+
+  if (user) {
+    redirect('/dashboard')
+  }
+
   return (
     <div className="flex flex-col min-h-screen bg-[#FFF7FA] dark:bg-zinc-950 font-sans antialiased text-[#1A1A1A] dark:text-zinc-150 relative">
       {/* SECTION 1: HEADER */}
@@ -50,9 +58,6 @@ export default function HomePage() {
 
         {/* SECTION 7: SUCCESS STORIES */}
         <SuccessStories />
-
-        {/* SECTION 8: MEMBERSHIP PLANS */}
-        <MembershipPlans />
 
         {/* SECTION 9: HOW IT WORKS */}
         <HowItWorks />

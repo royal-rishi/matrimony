@@ -4,7 +4,8 @@
 import { useState, useEffect } from 'react'
 import { 
   Heart, ShieldCheck, Crown, MapPin, Briefcase, 
-  GraduationCap, Sparkles, UserCheck, Bookmark, Lock, Loader2, ArrowRight
+  GraduationCap, Sparkles, UserCheck, Bookmark, Lock, Loader2, ArrowRight,
+  Search
 } from 'lucide-react'
 import { toast } from 'sonner'
 import Link from 'next/link'
@@ -12,7 +13,7 @@ import Link from 'next/link'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { fetchMatches, sendInterest, toggleShortlist } from '../actions/match-actions'
+import { fetchMatches, sendInterest, toggleShortlist, getMyInteractionStatus, fetchProfileById } from '../actions/match-actions'
 import type { Profile } from '@/types/database'
 
 // Left Sidebar categories
@@ -37,6 +38,25 @@ export function MatchesClient({ initialCategory = 'recommended', isPremium: _isP
   const [shortlistedIds, setShortlistedIds] = useState<Set<string>>(new Set())
   const [interestsSentIds, setInterestsSentIds] = useState<Set<string>>(new Set())
   const [sendingInterestId, setSendingInterestId] = useState<string | null>(null)
+  const [searchId, setSearchId] = useState('')
+  const [isSearchingById, setIsSearchingById] = useState(false)
+  const [searchResultActive, setSearchResultActive] = useState(false)
+
+  // Load initial interaction statuses (shortlist & interests sent) on mount
+  useEffect(() => {
+    async function loadInteractions() {
+      try {
+        const result = await getMyInteractionStatus()
+        if (result && !('error' in result)) {
+          setShortlistedIds(new Set(result.shortlisted))
+          setInterestsSentIds(new Set(result.interestsSent))
+        }
+      } catch (err) {
+        console.error('Failed to load interaction statuses:', err)
+      }
+    }
+    loadInteractions()
+  }, [])
 
   // Load matches when active tab changes
   useEffect(() => {
@@ -48,6 +68,8 @@ export function MatchesClient({ initialCategory = 'recommended', isPremium: _isP
           toast.error(result.error)
         } else {
           setProfiles(result.data || [])
+          setSearchResultActive(false)
+          setSearchId('')
         }
       } catch {
         toast.error('Error fetching matrimonial matches.')
@@ -57,6 +79,49 @@ export function MatchesClient({ initialCategory = 'recommended', isPremium: _isP
     }
     loadMatches()
   }, [activeCategory])
+
+  const handleSearchById = async (e: React.FormEvent) => {
+    e.preventDefault()
+    const trimmed = searchId.trim()
+    if (!trimmed) {
+      toast.error('Please enter a Profile ID.')
+      return
+    }
+
+    setIsSearchingById(true)
+    try {
+      const result = await fetchProfileById(trimmed)
+      if (result.error) {
+        toast.error(result.error)
+      } else if (result.data) {
+        setProfiles(result.data)
+        setSearchResultActive(true)
+        toast.success('Profile found!')
+      }
+    } catch {
+      toast.error('Error searching for profile.')
+    } finally {
+      setIsSearchingById(false)
+    }
+  }
+
+  const handleResetSearch = async () => {
+    setSearchId('')
+    setSearchResultActive(false)
+    setIsLoading(true)
+    try {
+      const result = await fetchMatches(activeCategory)
+      if (result.error) {
+        toast.error(result.error)
+      } else {
+        setProfiles(result.data || [])
+      }
+    } catch {
+      toast.error('Error fetching matrimonial matches.')
+    } finally {
+      setIsLoading(false)
+    }
+  }
 
   // Handle Shortlisting
   const handleToggleShortlist = async (targetId: string, e: React.MouseEvent) => {
@@ -155,15 +220,58 @@ export function MatchesClient({ initialCategory = 'recommended', isPremium: _isP
 
         {/* Right Matches Feed Grid */}
         <div className="lg:col-span-3 space-y-6">
-          <div className="flex justify-between items-center border-b border-zinc-150 pb-4">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center border-b border-zinc-200/50 pb-4 gap-4">
             <div>
               <h1 className="text-2xl font-black text-zinc-900 dark:text-white tracking-tight font-heading capitalize">
-                {activeCategory.replace('_', ' ')}
+                {searchResultActive ? 'Search Result' : activeCategory.replace('_', ' ')}
               </h1>
               <p className="text-xs text-zinc-500 mt-1">
-                Displaying matrimonial profiles suited for your account.
+                {searchResultActive 
+                  ? `Showing candidate for profile ID: ${searchId}` 
+                  : 'Displaying matrimonial profiles suited for your account.'}
               </p>
             </div>
+
+            {/* Profile ID Search Bar */}
+            <form onSubmit={handleSearchById} className="flex items-center gap-2 w-full sm:w-auto">
+              <div className="relative flex-grow sm:flex-grow-0 sm:w-64">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-400" />
+                <input
+                  type="text"
+                  placeholder="Search by Profile ID (UUID)..."
+                  value={searchId}
+                  onChange={(e) => setSearchId(e.target.value)}
+                  className="pl-9 pr-3 py-2 text-xs w-full bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl focus:outline-none focus:ring-2 focus:ring-pink-500/20 focus:border-pink-500 transition-all text-zinc-850 dark:text-zinc-150 placeholder:text-zinc-400"
+                />
+              </div>
+              <Button
+                type="submit"
+                size="sm"
+                disabled={isSearchingById}
+                className="bg-pink-600 hover:bg-pink-700 text-white font-bold h-9 px-4 rounded-xl text-xs flex items-center gap-1.5"
+              >
+                {isSearchingById ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <>
+                    <Search className="h-3.5 w-3.5" />
+                    Search
+                  </>
+                )}
+              </Button>
+              {searchResultActive && (
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={handleResetSearch}
+                  className="border-zinc-200 dark:border-zinc-800 hover:bg-zinc-50 dark:hover:bg-zinc-800 text-zinc-650 dark:text-zinc-350 h-9 px-3 rounded-xl text-xs flex items-center gap-1"
+                  title="Clear search"
+                >
+                  Clear
+                </Button>
+              )}
+            </form>
           </div>
 
           {isLoading ? (

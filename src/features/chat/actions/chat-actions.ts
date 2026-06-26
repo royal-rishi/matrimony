@@ -47,21 +47,31 @@ async function isBlocked(supabase: SupabaseClient, blockerId: string, blockedId:
 
 // ---- Helper: Basic profanity / contact-detail moderation ----
 function moderateContent(content: string): { flagged: boolean; reason?: string } {
-  // Block phone number patterns (basic)
-  const phoneRegex = /(\+91|0)?[6-9]\d{9}/g
-  if (phoneRegex.test(content)) {
-    return { flagged: true, reason: 'Phone number detected. Share contact details only after verification.' }
+  // 1. Block URL links and domains
+  const urlRegex = /\b(https?:\/\/|www\.)[a-zA-Z0-9-._~:/?#[\]@!$&'()*+,;=]+|\b[a-zA-Z0-9.-]+\.(com|net|org|in|info|co|us|uk|ca|au|biz|io)\b/i
+  if (urlRegex.test(content)) {
+    return { flagged: true, reason: 'URL links or website domains are not allowed in chat to ensure safety.' }
   }
-  // Block common email patterns
-  const emailRegex = /[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}/g
+
+  // 2. Block mobile numbers (stripping spaces, dashes, dots, and parentheses first)
+  const cleaned = content.replace(/[-.\s()]/g, '')
+  const phoneRegex = /(?:\+?91|0)?[6-9]\d{9}/
+  if (phoneRegex.test(cleaned)) {
+    return { flagged: true, reason: 'Mobile numbers are blocked in chat. Share contact details only after mutual profile verification.' }
+  }
+
+  // 3. Block common email patterns
+  const emailRegex = /[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}/
   if (emailRegex.test(content)) {
     return { flagged: true, reason: 'Email address detected. Please respect platform communication guidelines.' }
   }
-  // Block social media handles (WhatsApp, Instagram, etc.)
+
+  // 4. Block social media handles (WhatsApp, Instagram, etc.)
   const socialRegex = /\b(whatsapp|instagram|telegram|snapchat|facebook|fb\.com|t\.me)\b/i
   if (socialRegex.test(content)) {
     return { flagged: true, reason: 'External platform reference detected. Please keep conversations on Rishtajodo.' }
   }
+
   return { flagged: false }
 }
 
@@ -351,8 +361,8 @@ export async function sendMessage(rawInput: SendMessageInput): Promise<ActionRes
     }
   }
 
-  // Content moderation for text messages
-  if (messageType === 'text') {
+  // Content moderation for messages with text content
+  if (content && content.trim() !== '') {
     const moderation = moderateContent(content)
     if (moderation.flagged) {
       return { error: moderation.reason || 'Message blocked by content moderation.' }

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Image from 'next/image'
 import { ShieldCheck, Crown, MapPin, Briefcase, GraduationCap, Heart, Lock, IndianRupee } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
@@ -14,6 +14,7 @@ interface ProfileCardProps {
   compatibilityScore?: number
   onSendInterest?: (profileId: string) => Promise<void>
   onViewDetails?: (profileId: string) => void
+  initialInterestSent?: boolean
 }
 
 export function ProfileCard({
@@ -21,9 +22,14 @@ export function ProfileCard({
   compatibilityScore,
   onSendInterest,
   onViewDetails,
+  initialInterestSent,
 }: ProfileCardProps) {
   const [isSending, setIsSending] = useState(false)
-  const [interestSent, setInterestSent] = useState(false)
+  const [interestSent, setInterestSent] = useState(initialInterestSent || false)
+
+  useEffect(() => {
+    setInterestSent(initialInterestSent || false)
+  }, [initialInterestSent])
 
   // Calculate age from date of birth
   const getAge = (dob: string) => {

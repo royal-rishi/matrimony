@@ -16,6 +16,7 @@ interface SearchResultsProps {
   initialHasMore: boolean
   onSendInterest?: (profileId: string) => Promise<void>
   onViewDetails?: (profileId: string) => void
+  interestsSentIds?: Set<string>
 }
 
 export function SearchResults({
@@ -24,6 +25,7 @@ export function SearchResults({
   initialHasMore,
   onSendInterest,
   onViewDetails,
+  interestsSentIds,
 }: SearchResultsProps) {
   const [profiles, setProfiles] = useState<Profile[]>(initialProfiles)
   const [page, setPage] = useState(initialFilters.page || 1)
@@ -179,6 +181,7 @@ export function SearchResults({
                 profile={profile}
                 onSendInterest={onSendInterest}
                 onViewDetails={onViewDetails}
+                initialInterestSent={interestsSentIds?.has(profile.id)}
               />
             ))}
             {isLoading && hasMore && renderSkeletons()}

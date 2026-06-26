@@ -28,7 +28,7 @@ export type LogSeverity = 'info' | 'warning' | 'critical'
 export type Gender = 'male' | 'female' | 'other'
 
 export type MaritalStatus =
-  | 'never_married'
+  | 'unmarried'
   | 'divorced'
   | 'widowed'
   | 'awaiting_divorce'

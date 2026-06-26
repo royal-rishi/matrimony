@@ -177,6 +177,20 @@ export default async function DashboardPage() {
     console.warn('[Dashboard] user_assignments query failed:', err)
   }
 
+  // 8. Fetch user notifications
+  let notifications: any[] = []
+  try {
+    const { data: notifData } = await supabase
+      .from('notifications')
+      .select('*')
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: false })
+      .limit(10)
+    notifications = notifData || []
+  } catch (err) {
+    console.warn('[Dashboard] notifications query failed:', err)
+  }
+
   // Check incomplete fields to list
   const incompleteSteps = []
   if (!profile.education) incompleteSteps.push({ label: 'Add Qualification Details', tab: 'edit' })
@@ -193,25 +207,38 @@ export default async function DashboardPage() {
           
           {/* Dashboard Header */}
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white/80 dark:bg-zinc-900/80 backdrop-blur-md p-6 rounded-2xl border border-zinc-200/60 dark:border-zinc-800 shadow-md">
-            <div>
-              <h1 className="text-2xl font-black text-zinc-900 dark:text-white font-heading flex items-center gap-2">
-                Namaste, {profile.first_name}!
-                {profile.is_verified && <ShieldCheck className="h-5 w-5 text-emerald-500 fill-emerald-50" />}
-              </h1>
-              <p className="text-xs text-zinc-500">
-                Welcome to your matrimonial command center. Here is your matching status today.
-              </p>
+            <div className="flex items-center gap-4">
+              {profile.avatar_url ? (
+                <img
+                  src={profile.avatar_url}
+                  alt={`${profile.first_name} ${profile.last_name}`}
+                  className="w-14 h-14 rounded-full object-cover border-2 border-pink-500 shadow-sm"
+                />
+              ) : (
+                <div className="w-14 h-14 rounded-full bg-gradient-to-br from-pink-500 to-rose-500 text-white flex items-center justify-center font-black text-lg border-2 border-pink-500 shadow-sm select-none">
+                  {profile.first_name[0]}
+                </div>
+              )}
+              <div>
+                <h1 className="text-xl md:text-2xl font-black text-zinc-900 dark:text-white font-heading flex items-center gap-2">
+                  Namaste, {profile.first_name}!
+                  {profile.is_verified && <ShieldCheck className="h-5 w-5 text-emerald-500 fill-emerald-50" />}
+                </h1>
+                <p className="text-xs text-zinc-500">
+                  Welcome to your matrimonial command center. Here is your matching status today.
+                </p>
+              </div>
             </div>
             
             <div className="flex items-center gap-3">
               <Link href="/profile">
-                <Button variant="outline" className="border-zinc-200 text-xs font-semibold h-10 px-4 rounded-lg flex items-center gap-1">
+                <Button variant="outline" className="border-zinc-200 text-xs font-semibold h-10 px-4 rounded-lg flex items-center gap-1 cursor-pointer">
                   <User className="h-4 w-4" />
                   Edit Profile
                 </Button>
               </Link>
               <Link href="/search">
-                <Button className="bg-pink-600 hover:bg-pink-700 text-white text-xs font-bold h-10 px-4 rounded-lg flex items-center gap-1 shadow-sm">
+                <Button className="bg-pink-600 hover:bg-pink-700 text-white text-xs font-bold h-10 px-4 rounded-lg flex items-center gap-1 shadow-sm cursor-pointer">
                   <Search className="h-4 w-4" />
                   Find Matches
                 </Button>

@@ -23,7 +23,7 @@ export const profileEditSchema = z.object({
     return age >= 18
   }, 'You must be at least 18 years old'),
   marital_status: z.enum(
-    ['never_married', 'divorced', 'widowed', 'awaiting_divorce'],
+    ['unmarried', 'divorced', 'widowed', 'awaiting_divorce'],
     { message: 'Please select marital status' }
   ),
   religion: z.string().min(2, 'Please select or enter your religion'),

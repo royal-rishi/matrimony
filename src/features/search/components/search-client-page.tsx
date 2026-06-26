@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { SlidersHorizontal, Heart } from 'lucide-react'
 import { LandingHeader } from '@/features/landing/components/landing-header'
 import { Footer } from '@/features/landing/components/footer'
@@ -11,6 +11,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/co
 import type { SearchFilterOutput } from '../validators/search-validators'
 import type { Profile } from '@/types/database'
 import { toast } from 'sonner'
+import { sendInterest, getMyInteractionStatus } from '@/features/matching/actions/match-actions'
 
 interface SearchPageClientProps {
   initialFilters: SearchFilterOutput
@@ -25,6 +26,43 @@ export function SearchPageClient({
 }: SearchPageClientProps) {
   const [activeFilters, setActiveFilters] = useState<SearchFilterOutput>(initialFilters)
   const [isMobileDrawerOpen, setIsMobileDrawerOpen] = useState(false)
+  const [interestsSentIds, setInterestsSentIds] = useState<Set<string>>(new Set())
+
+  // Load initial interaction statuses (specifically interests sent) on mount
+  useEffect(() => {
+    async function loadInteractions() {
+      try {
+        const result = await getMyInteractionStatus()
+        if (result && !('error' in result)) {
+          setInterestsSentIds(new Set(result.interestsSent))
+        }
+      } catch (err) {
+        console.error('Failed to load interaction statuses:', err)
+      }
+    }
+    loadInteractions()
+  }, [])
+
+  // Handle sending matrimonial interest
+  const handleSendInterest = async (profileId: string) => {
+    try {
+      const result = await sendInterest(profileId)
+      if (result.error) {
+        toast.error(result.error)
+        throw new Error(result.error)
+      } else {
+        setInterestsSentIds((prev) => {
+          const next = new Set(prev)
+          next.add(profileId)
+          return next
+        })
+        toast.success('Interest sent successfully!')
+      }
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to send interest.')
+      throw err
+    }
+  }
 
   // Callback to update active search filters
   const handleApplyFilters = (newFilters: SearchFilterOutput) => {
@@ -168,6 +206,8 @@ export function SearchPageClient({
                 initialProfiles={initialProfiles}
                 initialHasMore={initialHasMore}
                 onViewDetails={handleViewDetails}
+                onSendInterest={handleSendInterest}
+                interestsSentIds={interestsSentIds}
               />
             </div>
 

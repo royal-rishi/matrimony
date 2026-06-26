@@ -57,7 +57,7 @@ export function ProfileEditForm({ profile }: ProfileEditFormProps) {
       last_name: profile.last_name,
       gender: profile.gender as 'male' | 'female' | 'other',
       date_of_birth: profile.date_of_birth,
-      marital_status: profile.marital_status as 'never_married' | 'divorced' | 'widowed' | 'awaiting_divorce',
+      marital_status: (profile.marital_status === 'unmarried' ? 'unmarried' : profile.marital_status) as any,
       religion: profile.religion,
       caste: profile.caste || '',
       mother_tongue: profile.mother_tongue,
@@ -155,12 +155,12 @@ export function ProfileEditForm({ profile }: ProfileEditFormProps) {
 
               <div className="space-y-2">
                 <Label htmlFor="marital_status">Marital Status</Label>
-                <Select value={currentMaritalStatus} onValueChange={(val) => val && setValue('marital_status', val as 'never_married' | 'divorced' | 'widowed' | 'awaiting_divorce')} disabled={isLoading}>
+                <Select value={currentMaritalStatus} onValueChange={(val) => val && setValue('marital_status', val as 'unmarried' | 'divorced' | 'widowed' | 'awaiting_divorce')} disabled={isLoading}>
                   <SelectTrigger id="marital_status">
                     <SelectValue placeholder="Select Marital Status" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="never_married">Never Married</SelectItem>
+                    <SelectItem value="unmarried">Never Married</SelectItem>
                     <SelectItem value="divorced">Divorced</SelectItem>
                     <SelectItem value="widowed">Widowed</SelectItem>
                     <SelectItem value="awaiting_divorce">Awaiting Divorce</SelectItem>

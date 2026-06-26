@@ -25,7 +25,7 @@ export async function sendInterest(targetId: string) {
     .select('*')
     .eq('profile_id_1', id1)
     .eq('profile_id_2', id2)
-    .single()
+    .maybeSingle()
 
   if (existingMatch) {
     if (existingMatch.status === 'rejected') {
@@ -99,7 +99,7 @@ export async function respondToInterest(matchId: string, status: 'accepted' | 'r
     .from('matches')
     .select('*')
     .eq('id', matchId)
-    .single()
+    .maybeSingle()
 
   if (!match) return { error: 'Interest request not found.' }
 
@@ -109,10 +109,11 @@ export async function respondToInterest(matchId: string, status: 'accepted' | 'r
     return { error: 'Only the recipient can accept this interest invite.' }
   }
 
+  const dbStatus = status === 'accepted' ? 'connected' : status
   const { error } = await supabase
     .from('matches')
     .update({
-      status,
+      status: dbStatus,
       updated_at: new Date().toISOString()
     })
     .eq('id', matchId)
@@ -183,7 +184,7 @@ export async function toggleShortlist(targetId: string, folder = 'Favorites', no
     .select('*')
     .eq('profile_id', user.id)
     .eq('shortlisted_profile_id', targetId)
-    .single()
+    .maybeSingle()
 
   if (existingShortlist) {
     // Delete
@@ -228,7 +229,7 @@ export async function trackProfileVisit(visitedId: string) {
     .select('*')
     .eq('profile_id', visitedId)
     .eq('visitor_id', user.id)
-    .single()
+    .maybeSingle()
 
   if (existingLog) {
     await supabase
@@ -325,4 +326,74 @@ export async function fetchMatches(category: string) {
 
   if (error) return { error: error.message }
   return { data: data as Profile[] }
+}
+
+/**
+ * Fetches the user's shortlisted profile IDs and matrimonial matching interactions.
+ */
+export async function getMyInteractionStatus() {
+  const supabase = (await createClient()) as unknown as SupabaseClient
+  const { data: { user }, error: userError } = await supabase.auth.getUser()
+  if (userError || !user) return { error: 'Unauthorized session.' }
+
+  // Fetch shortlists
+  const { data: shortlists } = await supabase
+    .from('shortlists')
+    .select('shortlisted_profile_id')
+    .eq('profile_id', user.id)
+
+  // Fetch matches involving the user
+  const { data: matches } = await supabase
+    .from('matches')
+    .select('profile_id_1, profile_id_2, status, initiated_by_id')
+    .or(`profile_id_1.eq.${user.id},profile_id_2.eq.${user.id}`)
+
+  const shortlisted = shortlists?.map((s) => s.shortlisted_profile_id) || []
+  
+  // Pending sent interests (where user initiated and status is pending)
+  const interestsSent = matches
+    ?.filter((m) => m.initiated_by_id === user.id && m.status === 'pending')
+    .map((m) => (m.profile_id_1 === user.id ? m.profile_id_2 : m.profile_id_1)) || []
+
+  // Accepted connections (where status is accepted or connected)
+  const connected = matches
+    ?.filter((m) => m.status === 'accepted' || m.status === 'connected')
+    .map((m) => (m.profile_id_1 === user.id ? m.profile_id_2 : m.profile_id_1)) || []
+
+  return {
+    shortlisted,
+    interestsSent,
+    connected
+  }
+}
+
+/**
+ * Fetches a specific profile by its Profile ID (UUID).
+ */
+export async function fetchProfileById(profileId: string) {
+  const supabase = (await createClient()) as unknown as SupabaseClient
+  const { data: { user }, error: userError } = await supabase.auth.getUser()
+  if (userError || !user) return { error: 'Unauthorized session.' }
+
+  const trimmedId = profileId.trim()
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+  if (!uuidRegex.test(trimmedId)) {
+    return { error: 'Invalid Profile ID format. Must be a valid UUID.' }
+  }
+
+  if (user.id === trimmedId) {
+    return { error: 'Cannot search for your own Profile ID.' }
+  }
+
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('*')
+    .eq('id', trimmedId)
+    .eq('is_deleted', false)
+    .maybeSingle()
+
+  if (error) return { error: error.message }
+  if (!data) return { error: 'Profile not found with this ID.' }
+
+  return { data: [data as Profile] }
 }

@@ -21,7 +21,7 @@ const MOTHER_TONGUES = [
 ]
 
 const MARITAL_STATUS_OPTIONS = [
-  { value: 'never_married', label: 'Never Married' },
+  { value: 'unmarried', label: 'Never Married' },
   { value: 'divorced', label: 'Divorced' },
   { value: 'widowed', label: 'Widowed' },
   { value: 'awaiting_divorce', label: 'Awaiting Divorce' }

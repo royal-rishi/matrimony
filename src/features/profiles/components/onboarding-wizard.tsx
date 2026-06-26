@@ -48,7 +48,7 @@ export function OnboardingWizard() {
   const router = useRouter()
 
   // React Hook Form
-  const { register, handleSubmit, setValue, watch, reset } = useForm<any>()
+  const { register, handleSubmit, setValue, watch, reset, getValues } = useForm<any>()
 
   // Load progress and prefill form on mount
   useEffect(() => {
@@ -89,24 +89,27 @@ export function OnboardingWizard() {
     loadProgress()
   }, [reset])
 
-  const currentGender = watch('gender')
-  const currentMaritalStatus = watch('marital_status')
-  const currentCreatedBy = watch('profile_created_by')
-  const currentReligion = watch('religion')
-  const currentMotherTongue = watch('mother_tongue')
-  const currentManglik = watch('manglik_status')
-  const currentHoroscope = watch('horoscope_available')
-  const currentEducation = watch('education')
-  const currentComplexion = watch('complexion')
-  const currentBodyType = watch('body_type')
-  const currentDiet = watch('diet')
-  const currentSmoking = watch('smoking')
-  const currentDrinking = watch('drinking')
-  const currentFamilyType = watch('family_type')
-  const currentFamilyValues = watch('family_values')
-  const currentPrefReligion = watch('pref_religion')
-  const currentPrefState = watch('pref_state')
-  const currentPrefMarital = watch('pref_marital_status')
+  // Watch all form fields reactively
+  const watchedValues = watch()
+
+  const currentGender = watchedValues?.gender
+  const currentMaritalStatus = watchedValues?.marital_status
+  const currentCreatedBy = watchedValues?.profile_created_by
+  const currentReligion = watchedValues?.religion
+  const currentMotherTongue = watchedValues?.mother_tongue
+  const currentManglik = watchedValues?.manglik_status
+  const currentHoroscope = watchedValues?.horoscope_available
+  const currentEducation = watchedValues?.education
+  const currentComplexion = watchedValues?.complexion
+  const currentBodyType = watchedValues?.body_type
+  const currentDiet = watchedValues?.diet
+  const currentSmoking = watchedValues?.smoking
+  const currentDrinking = watchedValues?.drinking
+  const currentFamilyType = watchedValues?.family_type
+  const currentFamilyValues = watchedValues?.family_values
+  const currentPrefReligion = watchedValues?.pref_religion
+  const currentPrefState = watchedValues?.pref_state
+  const currentPrefMarital = watchedValues?.pref_marital_status
 
   // Save current step data to database
   const saveStepData = async (formData: any, stepNumber: number) => {
@@ -201,6 +204,53 @@ export function OnboardingWizard() {
       toast.error('Server error saving step progress.')
       setIsSaving(false)
       return false
+    }
+  }
+
+  const isStepDataFilled = (stepNumber: number): boolean => {
+    const getVal = (field: string) => {
+      return watchedValues?.[field] || (profile ? (profile as any)[field] : null)
+    }
+
+    if (stepNumber === 1) {
+      return !!(getVal('first_name') && getVal('last_name') && getVal('gender') && getVal('date_of_birth') && getVal('marital_status'))
+    }
+    if (stepNumber === 2) {
+      return !!(getVal('religion') && getVal('mother_tongue'))
+    }
+    if (stepNumber === 3) {
+      return !!(getVal('education') && getVal('occupation'))
+    }
+    if (stepNumber === 4) {
+      return !!(getVal('height') && getVal('weight'))
+    }
+    if (stepNumber === 5) {
+      return !!getVal('diet')
+    }
+    if (stepNumber === 6) {
+      return !!(getVal('family_type') || getVal('father_occupation'))
+    }
+    if (stepNumber === 7) {
+      return !!(getVal('pref_age_min') && getVal('pref_age_max'))
+    }
+    if (stepNumber === 8) {
+      return !!(profile?.avatar_url || profile?.photos?.length)
+    }
+    return false
+  }
+
+  const handleSkipAndContinue = () => {
+    if (!isStepDataFilled(activeStep)) {
+      toast.error('All required fields in this step must be filled before continuing.')
+      return
+    }
+
+    if (activeStep < 8) {
+      setActiveStep((prev) => prev + 1)
+      toast.info(`Moved to Step ${activeStep + 1} without saving.`)
+    } else {
+      toast.success('Onboarding complete!')
+      router.push('/dashboard')
     }
   }
 
@@ -427,7 +477,7 @@ export function OnboardingWizard() {
                         <SelectValue placeholder="Select Marital Status" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="never_married">Never Married</SelectItem>
+                        <SelectItem value="unmarried">Never Married</SelectItem>
                         <SelectItem value="divorced">Divorced</SelectItem>
                         <SelectItem value="widowed">Widowed</SelectItem>
                         <SelectItem value="awaiting_divorce">Awaiting Divorce</SelectItem>
@@ -867,7 +917,7 @@ export function OnboardingWizard() {
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="Any">Any Marital Status</SelectItem>
-                        <SelectItem value="never_married">Never Married</SelectItem>
+                        <SelectItem value="unmarried">Never Married</SelectItem>
                         <SelectItem value="divorced">Divorced / Widowed</SelectItem>
                       </SelectContent>
                     </Select>
@@ -970,44 +1020,61 @@ export function OnboardingWizard() {
             )}
 
             {/* Navigation buttons */}
-            <div className="flex justify-between gap-4 pt-6 border-t border-zinc-150 dark:border-zinc-800 mt-8">
-              {activeStep > 1 ? (
+            <div className="flex flex-col sm:flex-row sm:justify-between gap-3 pt-6 border-t border-zinc-150 dark:border-zinc-800 mt-8">
+              {/* Back Button - Bottom on mobile, Left on desktop */}
+              <div className="w-full sm:w-auto order-3 sm:order-1">
+                {activeStep > 1 && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setActiveStep((prev) => prev - 1)}
+                    className="w-full sm:w-auto border-zinc-200 text-zinc-700 hover:bg-zinc-50 h-11 px-6 font-semibold justify-center cursor-pointer"
+                    disabled={isSaving}
+                  >
+                    <ArrowLeft className="h-4 w-4 mr-2" />
+                    Back
+                  </Button>
+                )}
+              </div>
+
+              {/* Next & Save/Continue Buttons - Top/Middle on mobile, Right on desktop */}
+              <div className="flex flex-col-reverse sm:flex-row gap-3 w-full sm:w-auto order-1 sm:order-2">
+                {/* Next button (Continue without save) */}
                 <Button
                   type="button"
                   variant="outline"
-                  onClick={() => setActiveStep((prev) => prev - 1)}
-                  className="border-zinc-200 text-zinc-700 hover:bg-zinc-50 h-11 px-6 font-semibold"
+                  onClick={handleSkipAndContinue}
+                  className="w-full sm:w-auto border-zinc-200 text-zinc-700 hover:bg-zinc-50 h-11 px-6 font-semibold cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed justify-center"
+                  disabled={isSaving || !isStepDataFilled(activeStep)}
+                >
+                  Next
+                  <ArrowRight className="h-4 w-4 ml-2" />
+                </Button>
+
+                {/* Save & Continue Button */}
+                <Button
+                  type="submit"
+                  className="w-full sm:w-auto bg-gradient-to-r from-pink-600 to-rose-500 hover:from-pink-700 hover:to-rose-600 text-white font-bold h-11 px-8 shadow-md shadow-rose-200/50 hover:shadow-lg transition-all duration-300 cursor-pointer justify-center"
                   disabled={isSaving}
                 >
-                  <ArrowLeft className="h-4 w-4 mr-2" />
-                  Back
+                  {isSaving ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Saving...
+                    </>
+                  ) : activeStep === 8 ? (
+                    <>
+                      Finish Onboarding
+                      <Check className="h-4 w-4 ml-2 stroke-[3px]" />
+                    </>
+                  ) : (
+                    <>
+                      Save & Continue
+                      <ArrowRight className="h-4 w-4 ml-2" />
+                    </>
+                  )}
                 </Button>
-              ) : (
-                <div />
-              )}
-
-              <Button
-                type="submit"
-                className="bg-gradient-to-r from-pink-600 to-rose-500 hover:from-pink-700 hover:to-rose-600 text-white font-bold h-11 px-8 shadow-md shadow-rose-200/50 hover:shadow-lg transition-all duration-300"
-                disabled={isSaving}
-              >
-                {isSaving ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Saving...
-                  </>
-                ) : activeStep === 8 ? (
-                  <>
-                    Finish Onboarding
-                    <Check className="h-4 w-4 ml-2 stroke-[3px]" />
-                  </>
-                ) : (
-                  <>
-                    Save & Continue
-                    <ArrowRight className="h-4 w-4 ml-2" />
-                  </>
-                )}
-              </Button>
+              </div>
             </div>
           </form>
         </div>

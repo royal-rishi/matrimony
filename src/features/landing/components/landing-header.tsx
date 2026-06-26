@@ -9,11 +9,12 @@ import { Button, buttonVariants } from '@/components/ui/button'
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet'
 import { cn } from '@/lib/utils'
 import { createClient } from '@/lib/supabase/client'
+import { NotificationBell } from '@/components/notification-bell'
 
 const guestLinks = [
   { href: '/', label: 'Home' },
   { href: '/search', label: 'Search' },
-  { href: '/#pricing', label: 'Membership' },
+  { href: '/pricing', label: 'Membership' },
   { href: '/#success-stories', label: 'Success Stories' },
   { href: '/#cta-contact', label: 'Contact Us' },
 ]
@@ -31,18 +32,42 @@ const memberLinks = [
 export function LandingHeader() {
   const [isOpen, setIsOpen] = useState(false)
   const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null)
+  const [notifications, setNotifications] = useState<any[]>([])
+  const [userId, setUserId] = useState<string | null>(null)
+  const [mounted, setMounted] = useState(false)
   const router = useRouter()
   const pathname = usePathname()
 
   useEffect(() => {
+    setMounted(true)
     const supabase = createClient()
     
+    const fetchNotifications = async (uId: string) => {
+      const { data } = await (supabase.from('notifications') as any)
+        .select('*')
+        .eq('user_id', uId)
+        .order('created_at', { ascending: false })
+        .limit(10)
+      if (data) setNotifications(data)
+    }
+
     supabase.auth.getSession().then(({ data: { session } }) => {
       setIsAuthenticated(!!session)
+      if (session?.user) {
+        setUserId(session.user.id)
+        fetchNotifications(session.user.id)
+      }
     })
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setIsAuthenticated(!!session)
+      if (session?.user) {
+        setUserId(session.user.id)
+        fetchNotifications(session.user.id)
+      } else {
+        setUserId(null)
+        setNotifications([])
+      }
     })
 
     return () => {
@@ -50,13 +75,13 @@ export function LandingHeader() {
     }
   }, [])
 
-  const currentLinks = isAuthenticated ? memberLinks : guestLinks
+  const currentLinks = mounted && isAuthenticated ? memberLinks : guestLinks
 
   return (
     <header className="sticky top-0 z-50 w-full border-b border-zinc-200/50 bg-white/85 backdrop-blur-md dark:bg-zinc-950/85 dark:border-zinc-800/50 transition-all duration-300">
       <div className="container mx-auto px-4 h-16 flex items-center justify-between">
         {/* Brand Logo - mockup png */}
-        <Link href="/" className="flex items-center group">
+        <Link href={mounted && isAuthenticated ? "/dashboard" : "/"} className="flex items-center group">
           <img
             src="/images/logo.png"
             alt="Rishtajodo Matrimonial"
@@ -87,8 +112,18 @@ export function LandingHeader() {
 
         {/* Desktop Action Buttons */}
         <div className="hidden md:flex items-center gap-3">
-          {isAuthenticated === true ? (
+          {!mounted || isAuthenticated === null ? (
+            <div className="w-24 h-10 flex items-center justify-center">
+              <div className="h-4 w-4 rounded-full border-2 border-pink-500 border-t-transparent animate-spin" />
+            </div>
+          ) : isAuthenticated === true ? (
             <>
+              {userId && (
+                <NotificationBell
+                  initialNotifications={notifications}
+                  userId={userId}
+                />
+              )}
               <Link
                 href="/profile"
                 className={cn(
@@ -112,7 +147,7 @@ export function LandingHeader() {
                 Sign Out
               </Button>
             </>
-          ) : isAuthenticated === false ? (
+          ) : (
             <>
               <Link
                 href="/login"
@@ -135,15 +170,17 @@ export function LandingHeader() {
                 Register Free
               </Link>
             </>
-          ) : (
-            <div className="w-24 h-10 flex items-center justify-center">
-              <div className="h-4 w-4 rounded-full border-2 border-pink-500 border-t-transparent animate-spin" />
-            </div>
           )}
         </div>
 
         {/* Mobile Navigation Menu */}
-        <div className="md:hidden">
+        <div className="md:hidden flex items-center gap-2">
+          {mounted && isAuthenticated === true && userId && (
+            <NotificationBell
+              initialNotifications={notifications}
+              userId={userId}
+            />
+          )}
           <Sheet open={isOpen} onOpenChange={setIsOpen}>
             <SheetTrigger
               render={
@@ -158,7 +195,7 @@ export function LandingHeader() {
                 <div className="space-y-6">
                   {/* Brand logo in sheet */}
                   <div className="flex items-center border-b border-zinc-100 pb-4">
-                    <Link href="/" onClick={() => setIsOpen(false)} className="flex items-center">
+                    <Link href={mounted && isAuthenticated ? "/dashboard" : "/"} onClick={() => setIsOpen(false)} className="flex items-center">
                       <img
                         src="/images/logo.png"
                         alt="Rishtajodo Matrimonial"
@@ -184,7 +221,11 @@ export function LandingHeader() {
 
                 {/* Mobile Action Buttons */}
                 <div className="flex flex-col gap-3 border-t border-zinc-100 pt-6">
-                  {isAuthenticated === true ? (
+                  {!mounted || isAuthenticated === null ? (
+                    <div className="h-24 flex items-center justify-center">
+                      <div className="h-5 w-5 rounded-full border-2 border-rose-500 border-t-transparent animate-spin" />
+                    </div>
+                  ) : isAuthenticated === true ? (
                     <>
                       <Link
                         href="/profile"
@@ -211,7 +252,7 @@ export function LandingHeader() {
                         Sign Out
                       </Button>
                     </>
-                  ) : isAuthenticated === false ? (
+                  ) : (
                     <>
                       <Link
                         href="/login"
@@ -234,10 +275,6 @@ export function LandingHeader() {
                         Register Free
                       </Link>
                     </>
-                  ) : (
-                    <div className="h-24 flex items-center justify-center">
-                      <div className="h-5 w-5 rounded-full border-2 border-rose-500 border-t-transparent animate-spin" />
-                    </div>
                   )}
                 </div>
               </div>

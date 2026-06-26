@@ -61,7 +61,7 @@ export default async function InterestsPage() {
         other_profile: otherProfile
       }
 
-      if (m.status === 'accepted') {
+      if (m.status === 'accepted' || m.status === 'connected') {
         accepted.push(record)
       } else if (m.status === 'rejected') {
         declined.push(record)

@@ -6,7 +6,7 @@ import { createClient } from '@/lib/supabase/server'
 import { NotificationPipeline } from '../pipeline/notification-pipeline'
 import type { NotificationEventPayload, EngineResult, PipelineContext } from '../types/engine.types'
 import { createNotificationService } from '../../services/notification-service.factory'
-import { NotificationLogger } from '../logs/notification-logger'
+import { NotificationLogger } from '../utils/notification-logger'
 
 export class NotificationOrchestrator {
   private readonly pipeline = new NotificationPipeline()

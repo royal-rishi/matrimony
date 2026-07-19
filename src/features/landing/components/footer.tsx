@@ -15,7 +15,7 @@ export function Footer() {
             <Link href="/" className="inline-flex items-center group">
               <img
                 src="/images/logo.png"
-                alt="RishtaJoro Matrimonial"
+                alt="RishtaJoro Matrimony"
                 className="h-[54px] w-auto object-contain transition-transform duration-300 group-hover:scale-[1.01]"
               />
             </Link>
@@ -142,7 +142,7 @@ export function Footer() {
 
         {/* Footer Bottom */}
         <div className="border-t border-zinc-200 dark:border-zinc-800/60 pt-8 flex flex-col md:flex-row md:justify-between items-center gap-4 text-[10px] text-zinc-400">
-          <p>© {currentYear} RishtaJoro Matrimonial. All rights reserved.</p>
+          <p>© {currentYear} RishtaJoro Matrimony. All rights reserved.</p>
           <div className="flex gap-6">
             <Link href="#" className="hover:text-pink-600 transition-colors">
               Privacy Policy

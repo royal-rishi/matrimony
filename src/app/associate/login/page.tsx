@@ -84,7 +84,7 @@ export default function AssociateLoginPage() {
             <div className="mx-auto mb-2 flex justify-center">
               <img
                 src="/images/logo.png"
-                alt="RishtaJoro Matrimonial"
+                alt="RishtaJoro Matrimony"
                 className="h-[54px] w-auto object-contain"
               />
             </div>

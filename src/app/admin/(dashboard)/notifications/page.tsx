@@ -1,12 +1,12 @@
-import { BroadcastSender } from '@/features/admin'
 import { generateMetadata } from '@/lib/seo/metadata'
 import type { Metadata } from 'next'
+import { NotificationDashboardWrapper } from '@/features/admin/notification/components/NotificationDashboardWrapper'
 
 export const metadata: Metadata = generateMetadata({
-  title: 'Notifications & Campaigns Manager',
+  title: 'Notification Operations Center',
   noIndex: true,
 })
 
 export default function AdminNotificationsPage() {
-  return <BroadcastSender />
+  return <NotificationDashboardWrapper defaultTab="dashboard" />
 }

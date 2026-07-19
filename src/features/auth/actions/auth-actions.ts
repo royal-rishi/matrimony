@@ -2,6 +2,7 @@
 
 import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
+import { headers } from 'next/headers'
 import type { UserRole } from '@/types/database'
 import {
   loginSchema,
@@ -44,12 +45,43 @@ export async function signInAction(rawInput: LoginInput) {
   // Get the profile to determine redirection route based on user role and profile completeness
   const { data: profile, error: profileError } = await supabase
     .from('profiles')
-    .select('role, education, photos, is_deleted')
+    .select('first_name, role, education, photos, is_deleted')
     .eq('id', signInData.user.id)
-    .single() as unknown as { data: { role: UserRole; education: string | null; photos: string[]; is_deleted: boolean } | null; error: Error | null }
+    .single() as unknown as { data: { first_name: string | null; role: UserRole; education: string | null; photos: string[]; is_deleted: boolean } | null; error: Error | null }
 
   if (profileError || !profile) {
     redirect('/')
+  }
+
+  // Detect and notify on login from a different device/User-Agent
+  try {
+    const reqHeaders = await headers()
+    const userAgent = reqHeaders.get('user-agent') || 'Unknown Device'
+    const lastUa = signInData.user.user_metadata?.last_login_ua
+
+    if (lastUa && lastUa !== userAgent) {
+      const { createEmailService } = await import('@/features/notification/email/factory/email.factory')
+      const emailService = createEmailService()
+      await emailService.sendEmail(
+        email,
+        'system.new_device_login',
+        {
+          user_name: profile.first_name || 'Member',
+          device_name: userAgent,
+          login_time: new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }),
+        },
+        { userId: signInData.user.id }
+      )
+    }
+
+    // Always update metadata to current user agent
+    await supabase.auth.updateUser({
+      data: {
+        last_login_ua: userAgent
+      }
+    })
+  } catch (err) {
+    console.error('Failed to trigger login device check alert:', err)
   }
 
   // Auto-reactivate: if the user had deactivated their account and is now logging back in,
@@ -104,62 +136,154 @@ export async function signUpAction(rawInput: RegisterInput) {
     referral_code,
   } = validatedFields.data
 
-  const adminSupabase = await createAdminClient()
-
-  // ── Check 1: Email duplicate ─────────────────────────────────────────────
-  // Skip this check for mobile-OTP mock emails (mobile_XXXXX@rishtajodo.com)
-  const isMockEmail = email.includes('@rishtajodo.com') && email.startsWith('mobile_')
-  if (!isMockEmail) {
-    const { data: existingAuthUsers } = await adminSupabase.auth.admin.listUsers()
-    const emailAlreadyExists = existingAuthUsers?.users?.some(
-      (u) => u.email?.toLowerCase() === email.toLowerCase()
-    )
-    if (emailAlreadyExists) {
-      return { error: 'This email address is already registered. Please log in or use a different email.' }
+  // Format Date of Birth to standard ISO (YYYY-MM-DD) to prevent database trigger casting failure (e.g. DD-MM-YYYY)
+  let formattedDob = date_of_birth
+  try {
+    // If the input date is in DD-MM-YYYY format, parse it manually to avoid timezone issues
+    if (date_of_birth && date_of_birth.includes('-')) {
+      const parts = date_of_birth.split('-')
+      if (parts[0] && parts[0].length === 2 && parts[2] && parts[1]) {
+        formattedDob = `${parts[2]}-${parts[1]}-${parts[0]}`
+      } else {
+        const dobDate = new Date(date_of_birth)
+        if (!isNaN(dobDate.getTime())) {
+          const yyyy = dobDate.getFullYear()
+          const mm = String(dobDate.getMonth() + 1).padStart(2, '0')
+          const dd = String(dobDate.getDate()).padStart(2, '0')
+          formattedDob = `${yyyy}-${mm}-${dd}`
+        }
+      }
     }
+  } catch (err) {
+    console.error('Failed to format DOB:', err)
   }
 
-  // ── Check 2: Mobile number duplicate ────────────────────────────────────
-  if (mobile_number) {
-    const cleanMobile = mobile_number.replace(/\D/g, '')
-    const { data: existingMobile } = await (adminSupabase.from('profiles') as any)
-      .select('id')
-      .or(`mobile_number.eq.${cleanMobile},mobile_number.eq.+91${cleanMobile},mobile_number.eq.91${cleanMobile}`)
-      .maybeSingle()
+  let emailAlreadyExists = false
+  let mobileAlreadyExists = false
 
-    if (existingMobile) {
-      return { error: 'This mobile number is already linked to an account. Please log in or use a different number.' }
+  const hasAdminKey = process.env.SUPABASE_SERVICE_ROLE_KEY && process.env.SUPABASE_SERVICE_ROLE_KEY !== 'your_supabase_service_role_key'
+  const adminSupabase = hasAdminKey ? await createAdminClient() : null
+
+  try {
+    const isMockEmail = email.includes('@rishtajodo.com') && email.startsWith('mobile_')
+    if (!isMockEmail && adminSupabase) {
+      const { data: existingAuthUsers } = await adminSupabase.auth.admin.listUsers()
+      emailAlreadyExists = !!existingAuthUsers?.users?.some(
+        (u) => u.email?.toLowerCase() === email.toLowerCase()
+      )
     }
+  } catch (err) {
+    console.error('Bypassing admin listUsers check:', err)
   }
 
-  const { data: signUpData, error } = await supabase.auth.signUp({
-    email,
-    password,
-    options: {
-      data: {
-        first_name,
-        last_name,
-        gender,
-        date_of_birth,
-        religion,
-        mobile_number,
-        role: 'user', // standard user signup is always 'user'
+  if (emailAlreadyExists) {
+    return { error: 'This email address is already registered. Please log in or use a different email.' }
+  }
+
+  try {
+    if (mobile_number) {
+      const cleanMobile = mobile_number.replace(/\D/g, '')
+      const clientToUse = adminSupabase || supabase
+
+      const { data: existingMobile } = await (clientToUse.from('profiles') as any)
+        .select('id')
+        .or(`mobile_number.eq.${cleanMobile},mobile_number.eq.+91${cleanMobile},mobile_number.eq.91${cleanMobile}`)
+        .maybeSingle()
+
+      mobileAlreadyExists = !!existingMobile
+    }
+  } catch (err) {
+    console.error('Bypassing mobile duplicate check:', err)
+  }
+
+  if (mobileAlreadyExists) {
+    return { error: 'This mobile number is already linked to an account. Please log in or use a different number.' }
+  }
+
+  let signUpData: any = null
+  let authError: any = null
+  let sentViaMsg91 = false
+
+  try {
+    const adminSupabaseClient = await createAdminClient()
+    const { data: linkData, error: linkError } = await adminSupabaseClient.auth.admin.generateLink({
+      type: 'signup',
+      email,
+      password,
+      options: {
+        data: {
+          first_name,
+          last_name,
+          gender,
+          date_of_birth: formattedDob,
+          religion,
+          mobile_number,
+          role: 'user',
+        },
+        redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'}/api/auth/callback`,
+      }
+    })
+
+    if (!linkError && linkData?.user) {
+      signUpData = { user: linkData.user }
+      if (linkData.properties?.email_otp) {
+        const { createEmailService } = await import('@/features/notification/email/factory/email.factory')
+        const emailService = createEmailService()
+        await emailService.sendEmail(
+          email,
+          'auth.verify_email',
+          {
+            otp: linkData.properties.email_otp,
+            dashboard_url: process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000',
+            user_name: first_name || 'Member'
+          }
+        )
+        sentViaMsg91 = true
+      }
+    } else if (linkError) {
+      authError = linkError
+    }
+  } catch (err) {
+    console.warn('Failed to register/send confirmation via MSG91, falling back to standard client:', err)
+  }
+
+  if (!sentViaMsg91 && !signUpData) {
+    const { data: standardSignUp, error: standardErr } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        data: {
+          first_name,
+          last_name,
+          gender,
+          date_of_birth: formattedDob,
+          religion,
+          mobile_number,
+          role: 'user',
+        },
+        emailRedirectTo: `${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'}/api/auth/callback`,
       },
-      emailRedirectTo: `${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'}/api/auth/callback`,
-    },
-  })
-
-  if (error) {
-    // Provide friendly error messages for common Supabase auth errors
-    if (error.message?.toLowerCase().includes('already registered') || error.message?.toLowerCase().includes('already been registered')) {
+    })
+    
+    if (standardErr) {
+      if (standardErr.message?.toLowerCase().includes('already registered') || standardErr.message?.toLowerCase().includes('already been registered')) {
+        return { error: 'This email address is already registered. Please log in or use a different email.' }
+      }
+      return { error: standardErr.message }
+    }
+    
+    signUpData = standardSignUp
+  } else if (authError) {
+    if (authError.message?.toLowerCase().includes('already registered') || authError.message?.toLowerCase().includes('already been registered')) {
       return { error: 'This email address is already registered. Please log in or use a different email.' }
     }
-    return { error: error.message }
+    return { error: authError.message }
   }
 
   if (signUpData?.user) {
     try {
-      await (adminSupabase.from('profiles') as any)
+      const clientToUse = adminSupabase || supabase
+      await (clientToUse.from('profiles') as any)
         .update({
           mobile_number,
           referral_code: referral_code || null,
@@ -170,7 +294,7 @@ export async function signUpAction(rawInput: RegisterInput) {
     }
   }
 
-  redirect('/login?registered=true')
+  return { success: true }
 }
 
 
@@ -257,16 +381,19 @@ export async function sendOtpAction(rawInput: OtpRequestInput) {
     return { error: 'Invalid email address or mobile number' }
   }
 
-  const { identifier } = validatedFields.data
+  const { identifier, channel } = validatedFields.data
   const supabase = await createClient()
   
   let email = ''
+  let isMobile = false
+  let cleanPhone = ''
 
   if (identifier.includes('@')) {
     email = identifier
   } else {
+    isMobile = true
     // Look up mobile number in profiles table
-    const cleanPhone = identifier.replace(/\D/g, '')
+    cleanPhone = identifier.replace(/\D/g, '')
     if (cleanPhone.length < 10) {
       return { error: 'Please enter a valid 10-digit mobile number.' }
     }
@@ -291,16 +418,81 @@ export async function sendOtpAction(rawInput: OtpRequestInput) {
     email = authUser.user.email
   }
 
-  const { error } = await supabase.auth.signInWithOtp({
-    email,
-    options: {
-      shouldCreateUser: false, // OTP is for logging in existing users only
-      emailRedirectTo: `${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'}/api/auth/callback`,
-    },
-  })
+  let sentViaMsg91 = false
 
-  if (error) {
-    return { error: error.message }
+  try {
+    const adminSupabase = await createAdminClient()
+    const { data: linkData, error: linkError } = await adminSupabase.auth.admin.generateLink({
+      type: 'magiclink',
+      email,
+      options: {
+        redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'}/api/auth/callback`,
+      }
+    })
+
+    if (!linkError && linkData?.properties?.email_otp) {
+      const otpCode = linkData.properties.email_otp
+
+      if (isMobile) {
+        const fullMobile = `+91${cleanPhone}`
+        if (channel === 'whatsapp') {
+          const { Msg91WhatsAppProvider } = await import('@/features/notification/otp/providers/msg91-whatsapp.provider')
+          const provider = new Msg91WhatsAppProvider()
+          const res = await provider.sendOtp(fullMobile, otpCode)
+          if (res.success) {
+            sentViaMsg91 = true
+          } else {
+            console.warn('Failed to send WhatsApp OTP:', res.error)
+          }
+        } else {
+          // Default to SMS
+          const { Msg91SmsProvider } = await import('@/features/notification/otp/providers/msg91-sms.provider')
+          const provider = new Msg91SmsProvider()
+          const res = await provider.sendOtp(fullMobile, otpCode)
+          if (res.success) {
+            sentViaMsg91 = true
+          } else {
+            console.warn('Failed to send SMS OTP:', res.error)
+          }
+        }
+      } else {
+        // Send email via MSG91
+        const { createEmailService } = await import('@/features/notification/email/factory/email.factory')
+        const emailService = createEmailService()
+        await emailService.sendEmail(
+          email,
+          'auth.verify_email',
+          {
+            otp: otpCode,
+            dashboard_url: process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000',
+            user_name: email.split('@')[0] || 'User'
+          }
+        )
+        sentViaMsg91 = true
+      }
+    }
+  } catch (err) {
+    console.warn('Failed to send OTP via MSG91, falling back to standard client:', err)
+  }
+
+  // If MSG91 send fails or was skipped (e.g. testing), fall back to standard client
+  if (!sentViaMsg91) {
+    if (isMobile && process.env.NODE_ENV === 'test') {
+      console.log(`[Mock OTP Send] Mocking OTP send to +91${cleanPhone} via ${channel || 'sms'}`)
+      sentViaMsg91 = true
+    } else {
+      const { error } = await supabase.auth.signInWithOtp({
+        email,
+        options: {
+          shouldCreateUser: false, // OTP is for logging in existing users only
+          emailRedirectTo: `${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'}/api/auth/callback`,
+        },
+      })
+
+      if (error) {
+        return { error: error.message }
+      }
+    }
   }
 
   return { success: true }

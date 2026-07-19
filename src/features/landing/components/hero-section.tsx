@@ -66,7 +66,7 @@ export function HeroSection() {
       <div className="absolute inset-0 w-full h-full bg-[#FFF7FA] dark:bg-zinc-950 -z-10">
         <img
           src="/images/hero-bg.png"
-          alt="RishtaJoro Matrimonial Couple"
+          alt="RishtaJoro Matrimony Couple"
           className="w-full h-full object-cover object-center pointer-events-none"
         />
         {/* Soft wash overlay for readability */}

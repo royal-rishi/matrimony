@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import Link from 'next/link'
-import { Loader2, Mail, Lock, AlertCircle, Phone, Sparkles } from 'lucide-react'
+import { Loader2, Mail, Lock, AlertCircle, Phone, Sparkles, Eye, EyeOff } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 
 import { Button } from '@/components/ui/button'
@@ -27,6 +27,8 @@ export function RegisterForm() {
   const [otpStep, setOtpStep] = useState<'request' | 'verify'>('request')
   const [otpSentMobile, setOtpSentMobile] = useState('')
   const [verificationCode, setVerificationCode] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const router = useRouter()
 
   const {
@@ -284,12 +286,21 @@ export function RegisterForm() {
                       <Lock className="absolute left-3 top-3 h-4 w-4 text-zinc-400" />
                       <Input
                         id="password"
-                        type="password"
+                        type={showPassword ? 'text' : 'password'}
                         placeholder="••••••••"
-                        className="pl-10 h-10 border-zinc-200 focus-visible:ring-rose-500 focus-visible:border-rose-500"
+                        className="pl-10 pr-10 h-10 border-zinc-200 focus-visible:ring-rose-500 focus-visible:border-rose-500"
                         disabled={isLoading}
                         {...register('password')}
                       />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword(!showPassword)}
+                        className="absolute right-3 top-3 text-zinc-400 hover:text-zinc-600 transition-colors"
+                        tabIndex={-1}
+                        aria-label={showPassword ? 'Hide password' : 'Show password'}
+                      >
+                        {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      </button>
                     </div>
                     {errors.password && (
                       <p className="text-xs text-rose-600 mt-1">{errors.password.message}</p>
@@ -302,12 +313,21 @@ export function RegisterForm() {
                       <Lock className="absolute left-3 top-3 h-4 w-4 text-zinc-400" />
                       <Input
                         id="confirm_password"
-                        type="password"
+                        type={showConfirmPassword ? 'text' : 'password'}
                         placeholder="••••••••"
-                        className="pl-10 h-10 border-zinc-200 focus-visible:ring-rose-500 focus-visible:border-rose-500"
+                        className="pl-10 pr-10 h-10 border-zinc-200 focus-visible:ring-rose-500 focus-visible:border-rose-500"
                         disabled={isLoading}
                         {...register('confirm_password')}
                       />
+                      <button
+                        type="button"
+                        onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                        className="absolute right-3 top-3 text-zinc-400 hover:text-zinc-600 transition-colors"
+                        tabIndex={-1}
+                        aria-label={showConfirmPassword ? 'Hide password' : 'Show password'}
+                      >
+                        {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      </button>
                     </div>
                     {errors.confirm_password && (
                       <p className="text-xs text-rose-600 mt-1">{errors.confirm_password.message}</p>
@@ -440,10 +460,15 @@ export function RegisterForm() {
                     <Input
                       id="mobile_number"
                       type="tel"
-                      placeholder="e.g. 0123456789"
+                      placeholder="e.g. 9876543210"
                       className="pl-10 h-10 border-zinc-200"
                       disabled={isLoading}
-                      {...register('mobile_number')}
+                      maxLength={10}
+                      {...register('mobile_number', {
+                        onChange: (e) => {
+                          e.target.value = e.target.value.replace(/\D/g, '').slice(0, 10)
+                        }
+                      })}
                     />
                   </div>
                   {errors.mobile_number && (

@@ -5,7 +5,7 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
-import { Loader2, Mail, Lock, AlertCircle, CheckCircle, KeyRound } from 'lucide-react'
+import { Loader2, Mail, Lock, AlertCircle, CheckCircle, KeyRound, MessageSquare, Eye, EyeOff } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -28,12 +28,14 @@ export function LoginForm() {
   const searchParams = useSearchParams()
   const [error, setError] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
+  const [showPassword, setShowPassword] = useState(false)
 
   // OTP Login Flow States
   const [otpIdentifier, setOtpIdentifier] = useState('')
   const [otpStep, setOtpStep] = useState<'request' | 'verify'>('request')
   const [isSendingOtp, setIsSendingOtp] = useState(false)
   const [isVerifyingOtp, setIsVerifyingOtp] = useState(false)
+  const [otpChannel, setOtpChannel] = useState<'sms' | 'whatsapp'>('sms')
 
   // Message flags from query parameters
   const isRegistered = searchParams.get('registered') === 'true'
@@ -69,6 +71,9 @@ export function LoginForm() {
       token: '',
     },
   })
+
+  const identifierValue = otpRequestForm.watch('identifier') || ''
+  const isPhoneNumber = /^\d+$/.test(identifierValue) || (identifierValue.length >= 10 && !identifierValue.includes('@'))
 
   useEffect(() => {
     if (isRegistered) {
@@ -111,7 +116,10 @@ export function LoginForm() {
     setIsSendingOtp(true)
 
     try {
-      const result = await sendOtpAction(data)
+      const result = await sendOtpAction({
+        ...data,
+        channel: isPhoneNumber ? otpChannel : undefined
+      })
       if (result?.error) {
         setError(result.error)
       } else {
@@ -122,7 +130,7 @@ export function LoginForm() {
         toast.success('OTP code sent successfully!', {
           description: isEmail
             ? 'Please check your registered email for the 6-digit login token.'
-            : 'Please check the email registered to your mobile number for the 6-digit login token.',
+            : `Please check your phone for the 6-digit verification code sent via ${otpChannel === 'whatsapp' ? 'WhatsApp' : 'SMS'}.`,
         })
       }
     } catch {
@@ -249,12 +257,21 @@ export function LoginForm() {
                   <Lock className="absolute left-3 top-3 h-4 w-4 text-zinc-400" />
                   <Input
                     id="password"
-                    type="password"
+                    type={showPassword ? 'text' : 'password'}
                     placeholder="••••••••"
-                    className="pl-10 h-10 border-zinc-200 focus-visible:ring-rose-500 focus-visible:border-rose-500 transition-all"
+                    className="pl-10 pr-10 h-10 border-zinc-200 focus-visible:ring-rose-500 focus-visible:border-rose-500 transition-all"
                     disabled={isLoading}
                     {...register('password')}
                   />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3 top-3 text-zinc-400 hover:text-zinc-600 transition-colors"
+                    tabIndex={-1}
+                    aria-label={showPassword ? 'Hide password' : 'Show password'}
+                  >
+                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
                 </div>
                 {errors.password && (
                   <p className="text-xs text-rose-600 mt-1">{errors.password.message}</p>
@@ -292,13 +309,54 @@ export function LoginForm() {
                       placeholder="name@example.com or 0123456789"
                       className="pl-10 h-10 border-zinc-200 focus-visible:ring-rose-500 focus-visible:border-rose-500 transition-all"
                       disabled={isSendingOtp}
-                      {...otpRequestForm.register('identifier')}
+                      {...otpRequestForm.register('identifier', {
+                        onChange: (e) => {
+                          const val = e.target.value
+                          if (/^\d+/.test(val)) {
+                            e.target.value = val.replace(/\D/g, '').slice(0, 10)
+                          }
+                        }
+                      })}
                     />
                   </div>
                   {otpRequestForm.formState.errors.identifier && (
                     <p className="text-xs text-rose-600 mt-1">{otpRequestForm.formState.errors.identifier.message}</p>
                   )}
                 </div>
+
+                {isPhoneNumber && (
+                  <div className="space-y-2 animate-in fade-in duration-200">
+                    <Label className="text-zinc-700 font-medium">OTP Delivery Channel</Label>
+                    <div className="grid grid-cols-2 gap-2 bg-zinc-100 p-1 rounded-lg">
+                      <button
+                        type="button"
+                        onClick={() => setOtpChannel('sms')}
+                        className={`py-2 text-xs font-semibold rounded-md flex items-center justify-center gap-2 transition-all ${
+                          otpChannel === 'sms'
+                            ? 'bg-white text-zinc-900 shadow-sm border border-zinc-200/50'
+                            : 'text-zinc-500 hover:text-zinc-700'
+                        }`}
+                      >
+                        <MessageSquare className="h-3.5 w-3.5 text-zinc-500" />
+                        SMS
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setOtpChannel('whatsapp')}
+                        className={`py-2 text-xs font-semibold rounded-md flex items-center justify-center gap-2 transition-all ${
+                          otpChannel === 'whatsapp'
+                            ? 'bg-white text-zinc-900 shadow-sm border border-zinc-200/50'
+                            : 'text-zinc-500 hover:text-zinc-700'
+                        }`}
+                      >
+                        <svg className="h-3.5 w-3.5 fill-emerald-600" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                          <path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946C.06 5.348 5.397.01 12.008.01c3.202.001 6.212 1.246 8.477 3.514 2.266 2.268 3.507 5.28 3.505 8.484-.004 6.657-5.34 11.997-11.953 11.997-2.005-.001-3.973-.502-5.717-1.458L0 24zm6.59-4.846c1.6.95 3.188 1.449 4.825 1.451 5.436 0 9.86-4.42 9.864-9.864.002-2.637-1.03-5.118-2.905-6.993-1.876-1.875-4.357-2.905-6.99-2.906-5.437 0-9.865 4.421-9.87 9.867-.002 1.714.453 3.39 1.317 4.877L1.13 22.84l4.521-1.186zM17.47 14.397c-.3-.149-1.777-.877-2.031-.97-.254-.092-.44-.139-.625.139-.185.277-.714.877-.875 1.062-.162.185-.325.208-.625.059-1.05-.523-1.815-.967-2.529-1.68-1.07-1.074-1.503-1.928-1.636-2.113-.13-.185-.014-.285.136-.434.135-.134.3-.348.45-.522.15-.174.2-.298.3-.497.1-.198.05-.371-.025-.521-.075-.149-.625-1.503-.856-2.062-.224-.539-.452-.465-.625-.473-.162-.008-.348-.009-.535-.009-.187 0-.491.07-.749.348-.257.278-.985.962-.985 2.348 0 1.387 1.008 2.725 1.15 2.91 1.03 1.365 2.164 2.215 3.328 2.659.83.316 1.59.339 2.189.251.667-.098 1.777-.726 2.027-1.428.25-.702.25-1.303.175-1.428-.075-.126-.275-.202-.575-.351z"/>
+                        </svg>
+                        WhatsApp
+                      </button>
+                    </div>
+                  </div>
+                )}
 
                 <Button
                   type="submit"

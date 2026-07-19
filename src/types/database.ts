@@ -841,6 +841,55 @@ export interface UserReport {
   created_at: string
 }
 
+// ============================================================
+// NOTIFICATION MODULE TYPES
+// ============================================================
+
+export type NotificationPriority = 'low' | 'normal' | 'high' | 'urgent'
+
+export type NotificationStatus =
+  | 'pending'
+  | 'dispatched'
+  | 'delivered'
+  | 'failed'
+  | 'cancelled'
+
+export type NotificationChannel = 'in_app' | 'email' | 'sms' | 'push' | 'whatsapp'
+
+export interface Notification {
+  id: string
+  user_id: string
+  type: string
+  title: string
+  body: string
+  action_url: string | null
+  image_url: string | null
+  metadata: Record<string, unknown>
+  priority: NotificationPriority
+  channels: NotificationChannel[]
+  status: NotificationStatus
+  is_read: boolean
+  read_at: string | null
+  is_deleted: boolean
+  deleted_at: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface NotificationPreferences {
+  user_id: string
+  in_app_enabled: boolean
+  email_enabled: boolean
+  sms_enabled: boolean
+  push_enabled: boolean
+  whatsapp_enabled: boolean
+  quiet_hours_start: string | null
+  quiet_hours_end: string | null
+  event_preferences: Record<string, { inApp: boolean; email: boolean; sms: boolean; push: boolean }>
+  created_at: string
+  updated_at: string
+}
+
 export interface Database {
   public: {
     Tables: {
@@ -870,7 +919,22 @@ export interface Database {
       associate_disputes: { Row: AssociateDispute; Insert: Partial<AssociateDispute>; Update: Partial<AssociateDispute> }
       marriage_successes: { Row: MarriageSuccess; Insert: Partial<MarriageSuccess>; Update: Partial<MarriageSuccess> }
       associate_notifications: { Row: AssociateNotification; Insert: Partial<AssociateNotification>; Update: Partial<AssociateNotification> }
-      notifications: { Row: any; Insert: any; Update: any }
+      notifications: { Row: Notification; Insert: Partial<Notification>; Update: Partial<Notification> }
+      notification_preferences: { Row: NotificationPreferences; Insert: Partial<NotificationPreferences>; Update: Partial<NotificationPreferences> }
+      notification_templates: { Row: import('@/features/notification/types/notification-database.types').NotificationTemplate; Insert: import('@/features/notification/types/notification-database.types').NotificationTemplateInsert; Update: import('@/features/notification/types/notification-database.types').NotificationTemplateUpdate }
+      notification_variables: { Row: import('@/features/notification/types/notification-database.types').NotificationVariable; Insert: Omit<import('@/features/notification/types/notification-database.types').NotificationVariable, 'id' | 'created_at' | 'updated_at'>; Update: Partial<import('@/features/notification/types/notification-database.types').NotificationVariable> }
+      notification_logs: { Row: import('@/features/notification/types/notification-database.types').NotificationLog; Insert: import('@/features/notification/types/notification-database.types').NotificationLogInsert; Update: Partial<import('@/features/notification/types/notification-database.types').NotificationLog> }
+      notification_queue: { Row: import('@/features/notification/types/notification-database.types').NotificationQueue; Insert: Omit<import('@/features/notification/types/notification-database.types').NotificationQueue, 'id' | 'created_at' | 'updated_at'>; Update: Partial<import('@/features/notification/types/notification-database.types').NotificationQueue> }
+      email_queue: { Row: import('@/features/notification/types/notification-database.types').EmailQueue; Insert: Omit<import('@/features/notification/types/notification-database.types').EmailQueue, 'id' | 'created_at' | 'updated_at'>; Update: Partial<import('@/features/notification/types/notification-database.types').EmailQueue> }
+      sms_queue: { Row: import('@/features/notification/types/notification-database.types').SmsQueue; Insert: Omit<import('@/features/notification/types/notification-database.types').SmsQueue, 'id' | 'created_at' | 'updated_at' | 'total_cost'>; Update: Partial<import('@/features/notification/types/notification-database.types').SmsQueue> }
+      whatsapp_queue: { Row: import('@/features/notification/types/notification-database.types').WhatsAppQueue; Insert: Omit<import('@/features/notification/types/notification-database.types').WhatsAppQueue, 'id' | 'created_at' | 'updated_at'>; Update: Partial<import('@/features/notification/types/notification-database.types').WhatsAppQueue> }
+      failed_notifications: { Row: import('@/features/notification/types/notification-database.types').FailedNotification; Insert: Omit<import('@/features/notification/types/notification-database.types').FailedNotification, 'id' | 'created_at' | 'updated_at'>; Update: Partial<import('@/features/notification/types/notification-database.types').FailedNotification> }
+      retry_queue: { Row: import('@/features/notification/types/notification-database.types').RetryQueue; Insert: Omit<import('@/features/notification/types/notification-database.types').RetryQueue, 'id' | 'created_at' | 'updated_at'>; Update: Partial<import('@/features/notification/types/notification-database.types').RetryQueue> }
+      delivery_reports: { Row: import('@/features/notification/types/notification-database.types').DeliveryReport; Insert: Omit<import('@/features/notification/types/notification-database.types').DeliveryReport, 'id' | 'created_at' | 'updated_at'>; Update: Partial<import('@/features/notification/types/notification-database.types').DeliveryReport> }
+      notification_analytics: { Row: import('@/features/notification/types/notification-database.types').NotificationAnalytics; Insert: Omit<import('@/features/notification/types/notification-database.types').NotificationAnalytics, 'id' | 'created_at' | 'updated_at' | 'delivery_rate' | 'open_rate' | 'success_rate' | 'avg_cost_per_msg'>; Update: Partial<import('@/features/notification/types/notification-database.types').NotificationAnalytics> }
+      broadcast_campaigns: { Row: import('@/features/notification/types/notification-database.types').BroadcastCampaign; Insert: import('@/features/notification/types/notification-database.types').BroadcastCampaignInsert; Update: Partial<import('@/features/notification/types/notification-database.types').BroadcastCampaign> }
+      broadcast_recipients: { Row: import('@/features/notification/types/notification-database.types').BroadcastRecipient; Insert: Omit<import('@/features/notification/types/notification-database.types').BroadcastRecipient, 'id' | 'created_at' | 'updated_at'>; Update: Partial<import('@/features/notification/types/notification-database.types').BroadcastRecipient> }
+      notification_template_audit: { Row: import('@/features/notification/types/notification-database.types').NotificationTemplateAudit; Insert: Omit<import('@/features/notification/types/notification-database.types').NotificationTemplateAudit, 'id' | 'created_at'>; Update: never }
       admin_roles: { Row: AdminRole; Insert: Partial<AdminRole>; Update: Partial<AdminRole> }
       admin_profiles: { Row: AdminProfile; Insert: Partial<AdminProfile>; Update: Partial<AdminProfile> }
       admin_sessions: { Row: AdminSession; Insert: Partial<AdminSession>; Update: Partial<AdminSession> }

@@ -4,7 +4,7 @@ import { z } from 'zod'
  * Validator schema for the login form.
  */
 export const loginSchema = z.object({
-  email: z.string().email('Please enter a valid email address'),
+  email: z.string().trim().toLowerCase().email('Please enter a valid email address'),
   password: z.string().min(6, 'Password must be at least 6 characters long'),
 })
 
@@ -14,7 +14,7 @@ export type LoginInput = z.infer<typeof loginSchema>
 export const registerSchema = z
   .object({
     // Account details
-    email: z.string().email('Please enter a valid email address'),
+    email: z.string().trim().toLowerCase().email('Please enter a valid email address'),
     password: z.string().min(6, 'Password must be at least 6 characters long'),
     confirm_password: z.string().min(6, 'Confirm password must match'),
 
@@ -25,7 +25,19 @@ export const registerSchema = z
       message: 'Please select gender',
     }),
     date_of_birth: z.string().refine((val) => {
-      const birthDate = new Date(val)
+      let parsedDate = val
+      if (val.includes('-')) {
+        const parts = val.split('-')
+        if (parts[0] && parts[0].length === 2 && parts[2] && parts[1]) {
+          parsedDate = `${parts[2]}-${parts[1]}-${parts[0]}`
+        }
+      } else if (val.includes('/')) {
+        const parts = val.split('/')
+        if (parts[0] && parts[0].length === 2 && parts[2] && parts[1]) {
+          parsedDate = `${parts[2]}-${parts[1]}-${parts[0]}`
+        }
+      }
+      const birthDate = new Date(parsedDate)
       if (isNaN(birthDate.getTime())) return false
       
       // Matrimonial age validation (typically 18+)
@@ -42,7 +54,7 @@ export const registerSchema = z
     religion: z.string().min(2, 'Please select or enter your religion'),
 
     // Mobile number
-    mobile_number: z.string().min(10, 'Please enter a valid 10-digit mobile number'),
+    mobile_number: z.string().regex(/^[6-9]\d{9}$/, 'Please enter a valid 10-digit Indian mobile number starting with 6, 7, 8, or 9'),
 
     // Referral code (optional)
     referral_code: z.string().optional(),
@@ -83,6 +95,16 @@ export type ResetPasswordInput = z.infer<typeof resetPasswordSchema>
  */
 export const otpRequestSchema = z.object({
   identifier: z.string().min(3, 'Please enter a valid email address or 10-digit mobile number'),
+  channel: z.enum(['sms', 'whatsapp']).optional(),
+}).refine((data) => {
+  const isNum = /^\d+$/.test(data.identifier)
+  if (isNum) {
+    return /^[6-9]\d{9}$/.test(data.identifier)
+  }
+  return true
+}, {
+  message: 'Please enter a valid 10-digit Indian mobile number starting with 6, 7, 8, or 9',
+  path: ['identifier']
 })
 
 export type OtpRequestInput = z.infer<typeof otpRequestSchema>

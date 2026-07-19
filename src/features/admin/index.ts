@@ -23,6 +23,34 @@ export { AuditLogsViewer } from './components/audit-logs/audit-logs-viewer'
 export { AnalyticsDashboard } from './components/dashboard/analytics-dashboard'
 export { FeatureFlagsManager } from './components/settings/feature-flags-manager'
 
+// Phase 9 — Notification Operations Center
+export { NotificationDashboardWrapper } from './notification/components/NotificationDashboardWrapper'
+export { NotificationSidebar } from './notification/components/NotificationSidebar'
+export { NotificationDashboard } from './notification/components/NotificationDashboard'
+export { TemplateEditor } from './notification/components/TemplateEditor'
+export { CampaignWizard } from './notification/components/CampaignWizard'
+export { QueueViewer } from './notification/components/QueueViewer'
+export { DLQViewer } from './notification/components/DLQViewer'
+export { ProviderStatus } from './notification/components/ProviderStatus'
+export { LogViewer } from './notification/components/LogViewer'
+export { AnalyticsPanel } from './notification/components/AnalyticsPanel'
+export { NotificationSettingsPanel } from './notification/components/NotificationSettingsPanel'
+
+// Phase 10 — Observability Platform
+export { ObservabilityCenter } from './notification/observability/components'
+
+// Phase 11 — QA & Production Readiness
+export { default as ProductionDashboard } from './notification/production/components/ProductionDashboard'
+export {
+  getAnalytics,
+  generateForecast,
+  runHealthCheck,
+  generateReport,
+  exportAnalytics,
+  getAuditTrail,
+  evaluateAndUpdateAlerts,
+} from './notification/observability/actions/observability.actions'
+
 // Actions
 export { getDashboardKPIs } from './actions/dashboard-actions'
 export { searchUsers, banUser, mergeDuplicateAccounts } from './actions/user-actions'
